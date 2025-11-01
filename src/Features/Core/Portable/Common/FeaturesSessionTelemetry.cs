@@ -14,6 +14,5 @@ internal static class FeaturesSessionTelemetry
     {
         CompletionProvidersLogger.ReportTelemetry();
         ChangeSignatureLogger.ReportTelemetry();
-        OnTheFlyDocsLogger.ReportTelemetry();
     }
 }

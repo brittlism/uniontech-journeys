@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeActions;
-using Microsoft.CodeAnalysis.Copilot;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Editor.Host;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
@@ -85,13 +84,13 @@ internal sealed partial class EditorSuggestedActionWithNestedFlavors(
     {
         using var _ = ArrayBuilder<SuggestedActionSet>.GetInstance(out var builder);
 
-        builder.Add(await GetPrimarySuggestedActionSetAsync(cancellationToken).ConfigureAwait(false));
+        builder.Add(await GetPrimarySuggestedActionSetAsync().ConfigureAwait(false));
         builder.AddIfNotNull(_fixAllFlavors);
 
         return builder.ToImmutableAndClear();
     }
 
-    private async Task<SuggestedActionSet> GetPrimarySuggestedActionSetAsync(CancellationToken cancellationToken)
+    private async Task<SuggestedActionSet> GetPrimarySuggestedActionSetAsync()
     {
         // In this method we add all the primary flavored suggested actions that need to show up
         // as hyperlinks on the lightbulb preview pane for all code actions.
@@ -108,36 +107,10 @@ internal sealed partial class EditorSuggestedActionWithNestedFlavors(
             this, new PreviewChangesCodeAction(this.CodeAction, this.GetPreviewResultAsync));
         suggestedActions.Add(previewChangesAction);
 
-        var refineUsingCopilotAction = await TryCreateRefineSuggestedActionAsync().ConfigureAwait(false);
-        if (refineUsingCopilotAction != null)
-            suggestedActions.Add(refineUsingCopilotAction);
-
         foreach (var action in this.CodeAction.AdditionalPreviewFlavors)
             suggestedActions.Add(CreateTrivialAction(this, action));
 
         return new SuggestedActionSet(categoryName: null, actions: suggestedActions.ToImmutable());
-
-        async Task<EditorSuggestedAction?> TryCreateRefineSuggestedActionAsync()
-        {
-            if (this.OriginalDocument is not Document originalDocument)
-                return null;
-
-            if (originalDocument.GetLanguageService<ICopilotOptionsService>() is not { } optionsService ||
-                 await optionsService.IsRefineOptionEnabledAsync().ConfigureAwait(false) is false)
-            {
-                return null;
-            }
-
-            if (originalDocument.GetLanguageService<ICopilotCodeAnalysisService>() is not { } copilotService ||
-                await copilotService.IsAvailableAsync(cancellationToken).ConfigureAwait(false) is false)
-            {
-                return null;
-            }
-
-            return CreateTrivialAction(
-                this, new RefineUsingCopilotCodeAction(
-                    this.OriginalSolution, this.CodeAction, _diagnostics.FirstOrDefault(), copilotService));
-        }
     }
 
     // HasPreview is called synchronously on the UI thread. In order to avoid blocking the UI thread,

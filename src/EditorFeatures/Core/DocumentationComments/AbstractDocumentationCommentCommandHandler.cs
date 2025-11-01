@@ -32,14 +32,12 @@ internal abstract class AbstractDocumentationCommentCommandHandler :
     private readonly ITextUndoHistoryRegistry _undoHistoryRegistry;
     private readonly IEditorOperationsFactoryService _editorOperationsFactoryService;
     private readonly EditorOptionsService _editorOptionsService;
-    private readonly CopilotGenerateDocumentationCommentManager _generateDocumentationCommentManager;
 
     protected AbstractDocumentationCommentCommandHandler(
         IUIThreadOperationExecutor uiThreadOperationExecutor,
         ITextUndoHistoryRegistry undoHistoryRegistry,
         IEditorOperationsFactoryService editorOperationsFactoryService,
-        EditorOptionsService editorOptionsService,
-        CopilotGenerateDocumentationCommentManager generateDocumentationCommentManager)
+        EditorOptionsService editorOptionsService)
     {
         Contract.ThrowIfNull(uiThreadOperationExecutor);
         Contract.ThrowIfNull(undoHistoryRegistry);
@@ -49,7 +47,6 @@ internal abstract class AbstractDocumentationCommentCommandHandler :
         _undoHistoryRegistry = undoHistoryRegistry;
         _editorOperationsFactoryService = editorOperationsFactoryService;
         _editorOptionsService = editorOptionsService;
-        _generateDocumentationCommentManager = generateDocumentationCommentManager;
     }
 
     protected abstract string ExteriorTriviaText { get; }
@@ -105,8 +102,6 @@ internal abstract class AbstractDocumentationCommentCommandHandler :
                 var oldCaret = textView.Caret.Position.VirtualBufferPosition;
 
                 returnValue = true;
-
-                _generateDocumentationCommentManager.TriggerDocumentationCommentProposalGeneration(document, snippet, oldSnapshot, oldCaret, textView, cancellationToken);
             }
         }
 

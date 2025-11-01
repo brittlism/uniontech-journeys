@@ -5,17 +5,11 @@
 using System;
 using System.Composition;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Copilot;
 using Microsoft.CodeAnalysis.CSharp.Extensions;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.ErrorReporting;
-using Microsoft.CodeAnalysis.GoToDefinition;
-using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Host.Mef;
-using Microsoft.CodeAnalysis.Internal.Log;
 using Microsoft.CodeAnalysis.QuickInfo;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 
@@ -195,86 +189,5 @@ internal sealed class CSharpSemanticQuickInfoProvider() : CommonSemanticQuickInf
                 return semanticModel.GetTypeInfo(node, cancellationToken);
             }
         }
-    }
-
-    protected override async Task<OnTheFlyDocsInfo?> GetOnTheFlyDocsInfoAsync(
-        QuickInfoContext context, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await GetOnTheFlyDocsInfoWorkerAsync(context, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e) when (FatalError.ReportAndCatchUnlessCanceled(e))
-        {
-            return null;
-        }
-    }
-
-    private static async Task<OnTheFlyDocsInfo?> GetOnTheFlyDocsInfoWorkerAsync(
-        QuickInfoContext context, CancellationToken cancellationToken)
-    {
-        var document = context.Document;
-        var position = context.Position;
-
-        if (document.GetLanguageService<ICopilotCodeAnalysisService>() is not { } copilotService ||
-            !await copilotService.IsAvailableAsync(cancellationToken).ConfigureAwait(false))
-        {
-            return null;
-        }
-
-        if (document.GetLanguageService<ICopilotOptionsService>() is not { } service ||
-            !await service.IsOnTheFlyDocsOptionEnabledAsync().ConfigureAwait(false))
-        {
-            return null;
-        }
-
-        if (document.IsRazorDocument())
-            return null;
-
-        var symbolService = document.GetRequiredLanguageService<IGoToDefinitionSymbolService>();
-        var semanticModel = await document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false);
-        var (symbol, _, _) = await symbolService.GetSymbolProjectAndBoundSpanAsync(
-            document, semanticModel, position, cancellationToken).ConfigureAwait(false);
-
-        // Don't show on-the-fly-docs for namespace symbols.
-        if (symbol is null or INamespaceSymbol)
-            return null;
-
-        if (symbol.MetadataToken != 0)
-        {
-            OnTheFlyDocsLogger.LogHoveredMetadataSymbol();
-        }
-        else
-        {
-            OnTheFlyDocsLogger.LogHoveredSourceSymbol();
-        }
-
-        if (symbol.DeclaringSyntaxReferences.Length == 0)
-            return null;
-
-        // Checks to see if any of the files containing the symbol are excluded.
-        var hasContentExcluded = false;
-        var symbolFilePaths = symbol.DeclaringSyntaxReferences.Select(reference => reference.SyntaxTree.FilePath);
-        foreach (var symbolFilePath in symbolFilePaths)
-        {
-            if (await copilotService.IsFileExcludedAsync(symbolFilePath, cancellationToken).ConfigureAwait(false))
-            {
-                hasContentExcluded = true;
-                Logger.Log(FunctionId.Copilot_On_The_Fly_Docs_Content_Excluded, logLevel: LogLevel.Information);
-                break;
-            }
-        }
-
-        var solution = document.Project.Solution;
-        var declarationCode = symbol.DeclaringSyntaxReferences.SelectAsArray(reference =>
-        {
-            var span = reference.Span;
-            var syntaxReferenceDocument = solution.GetDocument(reference.SyntaxTree);
-            return syntaxReferenceDocument is null ? null : new OnTheFlyDocsRelevantFileInfo(syntaxReferenceDocument, span);
-        });
-
-        var additionalContext = OnTheFlyDocsUtilities.GetAdditionalOnTheFlyDocsContext(solution, symbol);
-
-        return new OnTheFlyDocsInfo(symbol.ToDisplayString(), declarationCode, symbol.Language, hasContentExcluded, additionalContext);
     }
 }

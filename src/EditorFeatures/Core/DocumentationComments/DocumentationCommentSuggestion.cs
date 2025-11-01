@@ -6,7 +6,6 @@ using System;
 using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Editor.Copilot;
 using Microsoft.CodeAnalysis.Internal.Log;
 using Microsoft.VisualStudio.Language.Proposals;
 using Microsoft.VisualStudio.Language.Suggestions;
@@ -15,14 +14,14 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Microsoft.CodeAnalysis.DocumentationComments;
 
-internal sealed class DocumentationCommentSuggestion(CopilotGenerateDocumentationCommentProvider providerInstance,
+internal sealed class DocumentationCommentSuggestion(
     SuggestionManagerBase suggestionManager, VisualStudio.Threading.IAsyncDisposable? intelliCodeLineCompletionsDisposable) : SuggestionBase
 {
     public SuggestionManagerBase SuggestionManager { get; } = suggestionManager;
 
     public VisualStudio.Threading.IAsyncDisposable? IntelliCodeLineCompletionsDisposable { get; set; } = intelliCodeLineCompletionsDisposable;
 
-    public override TipStyle TipStyle => TipStyle.AlwaysShowTip | CopilotConstants.ShowThinkingStateTipStyle;
+    public override TipStyle TipStyle => TipStyle.AlwaysShowTip;
 
     public override EditDisplayStyle EditStyle => EditDisplayStyle.GrayText;
 
@@ -34,11 +33,7 @@ internal sealed class DocumentationCommentSuggestion(CopilotGenerateDocumentatio
 
     public override async Task OnAcceptedAsync(SuggestionSessionBase session, ProposalBase originalProposal, ProposalBase currentProposal, ReasonForAccept reason, CancellationToken cancel)
     {
-        var threadingContext = providerInstance.ThreadingContext;
-
-        await threadingContext.JoinableTaskFactory.SwitchToMainThreadAsync(cancel);
         await DisposeIntelliCodeCompletionsDisposableAsync().ConfigureAwait(false);
-        Logger.Log(FunctionId.Copilot_Generate_Documentation_Accepted, logLevel: LogLevel.Information);
     }
 
     public override Task OnChangeProposalAsync(SuggestionSessionBase session, ProposalBase originalProposal, ProposalBase currentProposal, bool forward, CancellationToken cancel)
@@ -48,17 +43,13 @@ internal sealed class DocumentationCommentSuggestion(CopilotGenerateDocumentatio
 
     public override async Task OnDismissedAsync(SuggestionSessionBase session, ProposalBase? originalProposal, ProposalBase? currentProposal, ReasonForDismiss reason, CancellationToken cancel)
     {
-        var threadingContext = providerInstance.ThreadingContext;
-        await threadingContext.JoinableTaskFactory.SwitchToMainThreadAsync(cancel);
         await ClearSuggestionAsync(reason, cancel).ConfigureAwait(false);
-        Logger.Log(FunctionId.Copilot_Generate_Documentation_Dismissed, logLevel: LogLevel.Information);
     }
 
     public override Task OnProposalUpdatedAsync(SuggestionSessionBase session, ProposalBase? originalProposal, ProposalBase? currentProposal, ReasonForUpdate reason, VirtualSnapshotPoint caret, CompletionState? completionState, CancellationToken cancel)
     {
         if (reason.HasFlag(ReasonForUpdate.Diverged))
         {
-            Logger.Log(FunctionId.Copilot_Generate_Documentation_Diverged, logLevel: LogLevel.Information);
             return session.DismissAsync(ReasonForDismiss.DismissedAfterBufferChange, cancel);
         }
 
@@ -123,12 +114,10 @@ internal sealed class DocumentationCommentSuggestion(CopilotGenerateDocumentatio
                     return true;
                 },
                 cancellationToken).ConfigureAwait(false);
-
-            Logger.Log(FunctionId.Copilot_Generate_Documentation_Displayed, logLevel: LogLevel.Information);
         }
         catch (OperationCanceledException)
         {
-            Logger.Log(FunctionId.Copilot_Generate_Documentation_Canceled, logLevel: LogLevel.Information);
+
         }
     }
 
@@ -161,7 +150,6 @@ internal sealed class DocumentationCommentSuggestion(CopilotGenerateDocumentatio
 
         var taskCompletionSource = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        await providerInstance.ThreadingContext.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
         SuggestionManager.EnqueueAction(description, async () =>
         {
             try

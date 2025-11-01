@@ -629,32 +629,7 @@ internal enum FunctionId
     RemoteWorkspace_SolutionCachingStatistics = 750,
 
     SemanticSearch_QueryExecution = 760,
-
-    // 800-850 for Copilot performance logging.
-    Copilot_Suggestion_Dismissed = 800,
-    Copilot_On_The_Fly_Docs_Showed_Link = 810,
-    Copilot_On_The_Fly_Docs_Loading_State_Entered = 811,
-    Copilot_On_The_Fly_Docs_Results_Displayed = 812,
-    Copilot_On_The_Fly_Docs_Error_Displayed = 813,
-    Copilot_On_The_Fly_Docs_Results_Canceled = 814,
-    Copilot_On_The_Fly_Docs_Get_Counts = 815,
-    Copilot_On_The_Fly_Docs_Content_Excluded = 816,
-
-    Copilot_Generate_Documentation_Dismissed = 820,
-    Copilot_Generate_Documentation_Diverged = 821,
-    Copilot_Generate_Documentation_Displayed = 822,
-    Copilot_Generate_Documentation_Accepted = 823,
-    Copilot_Generate_Documentation_Canceled = 824,
-
-    Copilot_Implement_NotImplementedException_Fix_Registered = 830,
-    Copilot_Implement_NotImplementedException_Failed = 831,
-    Copilot_Implement_NotImplementedException_Completed = 832,
-
-    Copilot_AnalyzeChange = 840,
-    Copilot_AdjustProposal = 841,
-
-    Copilot_Rename = 851,
-
+    
     VSCode_LanguageServer_Started = 860,
     VSCode_Project_Load_Started = 861,
     VSCode_Projects_Load_Completed = 862,

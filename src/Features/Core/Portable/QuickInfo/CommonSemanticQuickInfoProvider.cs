@@ -32,9 +32,8 @@ internal abstract partial class CommonSemanticQuickInfoProvider : CommonQuickInf
         var cancellationToken = context.CancellationToken;
         var semanticModel = await context.Document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false);
         var services = context.Document.Project.Solution.Services;
-        var onTheFlyDocsInfo = await GetOnTheFlyDocsInfoAsync(context, cancellationToken).ConfigureAwait(false);
         return await CreateContentAsync(
-            services, semanticModel, token, tokenInformation, supportedPlatforms, context.Options, onTheFlyDocsInfo, cancellationToken).ConfigureAwait(false);
+            services, semanticModel, token, tokenInformation, supportedPlatforms, context.Options, cancellationToken).ConfigureAwait(false);
     }
 
     protected override async Task<QuickInfoItem?> BuildQuickInfoAsync(
@@ -46,7 +45,7 @@ internal abstract partial class CommonSemanticQuickInfoProvider : CommonQuickInf
 
         // onTheFlyDocInfo is null here since On-The-Fly Docs are being computed at the document level.
         return await CreateContentAsync(
-            context.Services, context.SemanticModel, token, tokenInformation, supportedPlatforms: null, context.Options, onTheFlyDocsInfo: null, context.CancellationToken).ConfigureAwait(false);
+            context.Services, context.SemanticModel, token, tokenInformation, supportedPlatforms: null, context.Options, context.CancellationToken).ConfigureAwait(false);
     }
 
     private async Task<(TokenInformation tokenInformation, SupportedPlatformData? supportedPlatforms)> ComputeQuickInfoDataAsync(
@@ -160,7 +159,6 @@ internal abstract partial class CommonSemanticQuickInfoProvider : CommonQuickInf
         TokenInformation tokenInformation,
         SupportedPlatformData? supportedPlatforms,
         SymbolDescriptionOptions options,
-        OnTheFlyDocsInfo? onTheFlyDocsInfo,
         CancellationToken cancellationToken)
     {
         var syntaxFactsService = services.GetRequiredLanguageService<ISyntaxFactsService>(semanticModel.Language);
@@ -178,15 +176,12 @@ internal abstract partial class CommonSemanticQuickInfoProvider : CommonQuickInf
 
         return QuickInfoUtilities.CreateQuickInfoItemAsync(
             services, semanticModel, token.Span, symbols, supportedPlatforms,
-            tokenInformation.ShowAwaitReturn, tokenInformation.NullabilityInfo, options, onTheFlyDocsInfo, cancellationToken);
+            tokenInformation.ShowAwaitReturn, tokenInformation.NullabilityInfo, options, cancellationToken);
     }
 
     protected abstract bool GetBindableNodeForTokenIndicatingLambda(SyntaxToken token, [NotNullWhen(returnValue: true)] out SyntaxNode? found);
     protected abstract bool GetBindableNodeForTokenIndicatingPossibleIndexerAccess(SyntaxToken token, [NotNullWhen(returnValue: true)] out SyntaxNode? found);
     protected abstract bool GetBindableNodeForTokenIndicatingMemberAccess(SyntaxToken token, out SyntaxToken found);
-
-    protected virtual Task<OnTheFlyDocsInfo?> GetOnTheFlyDocsInfoAsync(QuickInfoContext context, CancellationToken cancellationToken)
-        => Task.FromResult<OnTheFlyDocsInfo?>(null);
 
     protected virtual string? GetNullabilityAnalysis(SemanticModel semanticModel, ISymbol symbol, SyntaxNode node, CancellationToken cancellationToken) => null;
 

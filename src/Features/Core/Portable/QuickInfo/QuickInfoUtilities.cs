@@ -19,7 +19,7 @@ namespace Microsoft.CodeAnalysis.QuickInfo;
 internal static class QuickInfoUtilities
 {
     public static Task<QuickInfoItem> CreateQuickInfoItemAsync(SolutionServices services, SemanticModel semanticModel, TextSpan span, ImmutableArray<ISymbol> symbols, SymbolDescriptionOptions options, CancellationToken cancellationToken)
-        => CreateQuickInfoItemAsync(services, semanticModel, span, symbols, supportedPlatforms: null, showAwaitReturn: false, nullabilityInfo: null, options, onTheFlyDocsInfo: null, cancellationToken);
+        => CreateQuickInfoItemAsync(services, semanticModel, span, symbols, supportedPlatforms: null, showAwaitReturn: false, nullabilityInfo: null, options, cancellationToken);
 
     public static async Task<QuickInfoItem> CreateQuickInfoItemAsync(
         SolutionServices services,
@@ -30,7 +30,6 @@ internal static class QuickInfoUtilities
         bool showAwaitReturn,
         string? nullabilityInfo,
         SymbolDescriptionOptions options,
-        OnTheFlyDocsInfo? onTheFlyDocsInfo,
         CancellationToken cancellationToken)
     {
         var descriptionService = services.GetRequiredLanguageService<ISymbolDisplayService>(semanticModel.Language);
@@ -72,7 +71,6 @@ internal static class QuickInfoUtilities
         if (groups.TryGetValue(SymbolDescriptionGroups.Documentation, out var docParts) && !docParts.IsDefaultOrEmpty)
         {
             AddSection(QuickInfoSectionKinds.DocumentationComments, docParts);
-            onTheFlyDocsInfo?.HasComments = true;
         }
 
         if (options.QuickInfoOptions.ShowRemarksInQuickInfo &&
@@ -144,7 +142,7 @@ internal static class QuickInfoUtilities
         if (supportedPlatforms?.HasValidAndInvalidProjects() == true)
             tags = tags.Add(WellKnownTags.Warning);
 
-        return QuickInfoItem.Create(span, tags, sections.ToImmutable(), relatedSpans: default, onTheFlyDocsInfo);
+        return QuickInfoItem.Create(span, tags, sections.ToImmutable(), relatedSpans: default);
 
         bool TryGetGroupText(SymbolDescriptionGroups group, out ImmutableArray<TaggedText> taggedParts)
             => groups.TryGetValue(group, out taggedParts) && !taggedParts.IsDefaultOrEmpty;

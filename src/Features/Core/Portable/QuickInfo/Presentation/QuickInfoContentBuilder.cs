@@ -169,12 +169,6 @@ internal static class QuickInfoContentBuilder
                 }
             }
 
-            // Add on-the-fly documentation
-            if (quickInfoItem.OnTheFlyDocsInfo is not null)
-            {
-                elements.Add(new QuickInfoOnTheFlyDocsElement(context.Document, quickInfoItem.OnTheFlyDocsInfo));
-            }
-
             return new QuickInfoContainerElement(
                 QuickInfoContainerStyle.Stacked | QuickInfoContainerStyle.VerticalPadding,
                 elements.ToImmutableAndClear());

@@ -15,7 +15,6 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes.Suppression;
 using Microsoft.CodeAnalysis.CodeFixesAndRefactorings;
-using Microsoft.CodeAnalysis.Copilot;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.ErrorLogger;
 using Microsoft.CodeAnalysis.ErrorReporting;
@@ -111,9 +110,6 @@ internal sealed partial class CodeFixService : ICodeFixService
             allDiagnostics = allDiagnostics.WhereAsArray(d => !d.IsSuppressed);
         }
 
-        var copilotDiagnostics = await GetCopilotDiagnosticsAsync(document, range, priority, cancellationToken).ConfigureAwait(false);
-        allDiagnostics = allDiagnostics.AddRange(copilotDiagnostics);
-
         var text = await document.GetValueTextAsync(cancellationToken).ConfigureAwait(false);
         var spanToDiagnostics = ConvertToMap(text, allDiagnostics);
 
@@ -200,9 +196,6 @@ internal sealed partial class CodeFixService : ICodeFixService
                 diagnostics = diagnostics.WhereAsArray(d => !d.IsSuppressed);
         }
 
-        var copilotDiagnostics = await GetCopilotDiagnosticsAsync(document, range, priority, cancellationToken).ConfigureAwait(false);
-        diagnostics = diagnostics.AddRange(copilotDiagnostics);
-
         if (diagnostics.IsEmpty)
             yield break;
 
@@ -241,18 +234,6 @@ internal sealed partial class CodeFixService : ICodeFixService
                 }
             }
         }
-    }
-
-    private static async Task<ImmutableArray<DiagnosticData>> GetCopilotDiagnosticsAsync(
-        TextDocument document,
-        TextSpan range,
-        CodeActionRequestPriority? priority,
-        CancellationToken cancellationToken)
-    {
-        if (priority is null or CodeActionRequestPriority.Low)
-            return await document.GetCachedCopilotDiagnosticsAsync(range, cancellationToken).ConfigureAwait(false);
-
-        return [];
     }
 
     private static SortedDictionary<TextSpan, List<DiagnosticData>> ConvertToMap(
@@ -1026,18 +1007,12 @@ internal sealed partial class CodeFixService : ICodeFixService
         return new(kinds, attribute.DocumentExtensions);
     }
 
-    private sealed class FixerComparer : IComparer<CodeFixProvider>
+    private sealed class FixerComparer(
+        ImmutableArray<CodeFixProvider> allFixers,
+        ImmutableDictionary<CodeFixProvider, int> priorityMap) : IComparer<CodeFixProvider>
     {
-        private readonly Dictionary<CodeFixProvider, int> _fixerToIndex;
-        private readonly ImmutableDictionary<CodeFixProvider, int> _priorityMap;
-
-        public FixerComparer(
-            ImmutableArray<CodeFixProvider> allFixers,
-            ImmutableDictionary<CodeFixProvider, int> priorityMap)
-        {
-            _fixerToIndex = allFixers.Select((fixer, index) => (fixer, index)).ToDictionary(t => t.fixer, t => t.index);
-            _priorityMap = priorityMap;
-        }
+        private readonly Dictionary<CodeFixProvider, int> _fixerToIndex = allFixers.Select((fixer, index) => (fixer, index)).ToDictionary(t => t.fixer, t => t.index);
+        private readonly ImmutableDictionary<CodeFixProvider, int> _priorityMap = priorityMap;
 
         public int Compare([AllowNull] CodeFixProvider x, [AllowNull] CodeFixProvider y)
         {
@@ -1061,14 +1036,9 @@ internal sealed partial class CodeFixService : ICodeFixService
     public TestAccessor GetTestAccessor()
         => new(this);
 
-    public readonly struct TestAccessor
+    public readonly struct TestAccessor(CodeFixService codeFixService)
     {
-        private readonly CodeFixService _codeFixService;
-
-        public TestAccessor(CodeFixService codeFixService)
-        {
-            _codeFixService = codeFixService;
-        }
+        private readonly CodeFixService _codeFixService = codeFixService;
 
         public ImmutableDictionary<LanguageKind, Lazy<ImmutableDictionary<CodeFixProvider, int>>> GetFixerPriorityPerLanguageMap(SolutionServices services)
             => _codeFixService.GetFixerPriorityPerLanguageMap(services);
